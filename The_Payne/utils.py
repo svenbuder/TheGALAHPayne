@@ -26,21 +26,19 @@ def read_in_neural_network():
     return NN_coeffs
 
 def create_wavelength_array(survey='galah'):
-    '''                                                                                                                                                                                                     
-    create the wavelength array needed for galah                                                                                                                                                            
     '''
-
+    create the wavelength array needed for galah
+    '''
     if survey != 'galah':
         print('this function can only create the wavelength array for galah')
     else:
-        ccd1=np.arange(4715.94,4896.00,0.046) # ab lines 4716.3 - 4892.3                                                                                                                                    
-        ccd2=np.arange(5650.06,5868.25,0.055) # ab lines 5646.0 - 5867.8                                                                                                                                    
-        ccd3=np.arange(6480.52,6733.92,0.064) # ab lines 6481.6 - 6733.4                                                                                                                                    
-        ccd4=np.arange(7693.50,7875.55,0.074) # ab lines 7691.2 - 7838.5                                                                                                                                    
+        ccd1=np.arange(4715.94,4896.00,0.046) # ab lines 4716.3 - 4892.3
+        ccd2=np.arange(5650.06,5868.25,0.055) # ab lines 5646.0 - 5867.8
+        ccd3=np.arange(6480.52,6733.92,0.064) # ab lines 6481.6 - 6733.4
+        ccd4=np.arange(7693.50,7875.55,0.074) # ab lines 7691.2 - 7838.5
         wavelength = np.concatenate((ccd1, ccd2, ccd3, ccd4))
-        part =
-        os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/galah_wavelength.npz')
-        np.savez(parth, wavelength=wavelength)
+        part = os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/galah_wavelength.npz')
+        np.savez(path, wavelength=wavelength)
 
 def load_wavelength_array(survey='apogee'):
     '''
@@ -59,6 +57,28 @@ def load_wavelength_array(survey='apogee'):
     wavelength = tmp['wavelength']
     tmp.close()
     return wavelength
+
+def create_galah_mask():
+    '''
+    for now this will create an array with 14304 True entries
+    '''
+    path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/galah_mask.npz')
+    galah_mask = numpy.ones(14304, dtype=bool)
+    np.savez(path, galah_mask=galah_mask)
+
+def load_galah_mask():
+    '''
+    read in the pixel mask with which we will omit bad pixels during spectral fitting
+    in the future, this will help to omit bad pixels etc.
+    for now, we will use all pixels during spectral fitting
+    '''
+    path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/apogee_mask.npz')
+    if not os.path.exist(path):
+        create_galah_mask()
+    tmp = np.load(path)
+    mask = tmp['galah_mask']
+    tmp.close()
+    return mask
 
 def load_apogee_mask():
     '''

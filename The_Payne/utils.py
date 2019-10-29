@@ -2,6 +2,7 @@
 from __future__ import absolute_import, division, print_function # python2 compatibility
 import numpy as np
 import os
+import glob
 
 def read_in_neural_network():
     '''
@@ -24,11 +25,36 @@ def read_in_neural_network():
     tmp.close()
     return NN_coeffs
 
-def load_wavelength_array():
+def create_wavelength_array(survey='galah'):
+    '''                                                                                                                                                                                                     
+    create the wavelength array needed for galah                                                                                                                                                            
+    '''
+
+    if survey != 'galah':
+        print('this function can only create the wavelength array for galah')
+    else:
+        ccd1=np.arange(4715.94,4896.00,0.046) # ab lines 4716.3 - 4892.3                                                                                                                                    
+        ccd2=np.arange(5650.06,5868.25,0.055) # ab lines 5646.0 - 5867.8                                                                                                                                    
+        ccd3=np.arange(6480.52,6733.92,0.064) # ab lines 6481.6 - 6733.4                                                                                                                                    
+        ccd4=np.arange(7693.50,7875.55,0.074) # ab lines 7691.2 - 7838.5                                                                                                                                    
+        wavelength = np.concatenate((ccd1, ccd2, ccd3, ccd4))
+        part =
+        os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/galah_wavelength.npz')
+        np.savez(parth, wavelength=wavelength)
+
+def load_wavelength_array(survey='apogee'):
     '''
     read in the default wavelength grid onto which we interpolate all spectra
+    the keyword 'survey' is 'apogee' by default, but we can also use 'galah' 
     '''
-    path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/apogee_wavelength.npz')
+    if survey == 'apogee':
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/apogee_wavelength.npz')
+    elif survey == 'galah':
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/galah_wavelength.npz')
+        if not os.path.exist(path):
+            create_wavelength_array(survey='galah')
+    else:
+        print('You should use either apogee or galah')
     tmp = np.load(path)
     wavelength = tmp['wavelength']
     tmp.close()

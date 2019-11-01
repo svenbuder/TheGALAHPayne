@@ -2,6 +2,8 @@
 from __future__ import absolute_import, division, print_function # python2 compatibility
 import numpy as np
 import os
+import glob
+from astropy.io import fits
 
 def read_in_neural_network():
     '''
@@ -24,15 +26,69 @@ def read_in_neural_network():
     tmp.close()
     return NN_coeffs
 
-def load_wavelength_array():
+def create_wavelength_array(survey='galah'):
+    '''
+    create the wavelength array needed for galah
+    '''
+    if survey != 'galah':
+        print('this function can only create the wavelength array for galah')
+    else:
+        ccd1=np.arange(4715.94,4896.00,0.046) # ab lines 4716.3 - 4892.3
+        ccd2=np.arange(5650.06,5868.25,0.055) # ab lines 5646.0 - 5867.8
+        ccd3=np.arange(6480.52,6733.92,0.064) # ab lines 6481.6 - 6733.4
+        ccd4=np.arange(7693.50,7875.55,0.074) # ab lines 7691.2 - 7838.5
+        wavelength = np.concatenate((ccd1, ccd2, ccd3, ccd4))
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/galah_wavelength.npz')
+        np.savez(path, wavelength=wavelength)
+
+def load_wavelength_array(survey='apogee'):
     '''
     read in the default wavelength grid onto which we interpolate all spectra
+    the keyword 'survey' is 'apogee' by default, but we can also use 'galah' 
     '''
-    path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/apogee_wavelength.npz')
+    if survey == 'apogee':
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/apogee_wavelength.npz')
+    elif survey == 'galah':
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/galah_wavelength.npz')
+        if not os.path.exists(path):
+            create_wavelength_array(survey='galah')
+    else:
+        print('You should use either apogee or galah')
     tmp = np.load(path)
     wavelength = tmp['wavelength']
     tmp.close()
     return wavelength
+
+def create_galah_mask():
+    '''
+    for now this will create an array with 14304 True entries
+    '''
+    path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/galah_mask.npz')
+    galah_mask = np.ones(14304, dtype=bool)
+    
+    path_wave = os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/galah_wavelength.npz')
+    tmp = np.load(path_wave)
+    wavelength = tmp['wavelength']
+    tmp.close()
+    
+    # masking cores of Balmer lines
+    galah_mask[np.abs(wavelength-4861.3230)<0.25]=False
+    galah_mask[np.abs(wavelength-6562.7970)<0.25]=False
+    np.savez(path, galah_mask=galah_mask)
+
+def load_galah_mask():
+    '''
+    read in the pixel mask with which we will omit bad pixels during spectral fitting
+    in the future, this will help to omit bad pixels etc.
+    for now, we will use all pixels during spectral fitting
+    '''
+    path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/galah_mask.npz')
+    if not os.path.exists(path):
+        create_galah_mask()
+    tmp = np.load(path)
+    mask = tmp['galah_mask']
+    tmp.close()
+    return mask
 
 def load_apogee_mask():
     '''
@@ -56,22 +112,96 @@ def load_cannon_contpixels():
     tmp.close()
     return pixels_cannon
 
-def load_training_data():
+def get_model_grid(file_type='fits', fits2npz=False):
+    '''
+    Either read in the information from GALAH-spectra2.fits and save it into NPZ
+    
+    or
+    
+    read in the NPZ file
+    '''
+    
+    if file_type=='fits':
+        a1 = fits.getdata(os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/GALAH-spectra2.fits'),ext=1)[0]
+        a2 = fits.getdata(os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/GALAH-spectra2.fits'),ext=2)
+        
+        model_grid=dict(
+            wavelength = a1[0],
+            teff = a1[1],
+            logg = a1[2],
+            feh = a1[3],
+            alpha_fe = a1[4],
+            c_fe = a1[5],
+            smod = a2
+        )
+
+        if fits2npz==True:
+            path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/model_grid.npz')
+            if not os.path.exists(path):
+                np.savez(path, **model_grid)
+
+            print('The model_grid has the following keywords:')
+            print(model_grid.keys())
+            
+    if file_type=='npz':
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/model_grid.npz')
+        tmp = np.load(path)
+        model_grid = dict(**tmp)
+        print('The model_grid has the following keywords:')
+        print(model_grid.keys())
+        tmp.close()
+        
+        if fits2npz==True:
+            print('You can not read NPZ before saving FITS2NPZ')
+
+    return(model_grid)
+
+def load_training_data(survey='apogee', size=1000):
     '''
     read in the default Kurucz training spectra for APOGEE
-
-    Here we only consider 800 training spectra and 200 validation spectra
-    for the tutorial (due to the GitHub upload limit); in practice, more
-    training spectra will be better. The default neural networks included were
-    trained using 10000 training spectra.
+    or
+    read in the whole GALAH model grid and select a training set from it
+    currently, 1000 random GALAH spectra will be chosen
+    and from those we choose the first 800 to be part of the training set and the other 200 as validation
     '''
-    path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/kurucz_training_spectra.npz')
-    tmp = np.load(path)
-    training_labels = (tmp["labels"].T)[:800,:]
-    training_spectra = tmp["spectra"][:800,:]
-    validation_labels = (tmp["labels"].T)[800:,:]
-    validation_spectra = tmp["spectra"][800:,:]
-    tmp.close()
+    
+    if survey=='apogee':
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__)),'other_data/kurucz_training_spectra.npz')
+        tmp = np.load(path)
+        training_labels = (tmp["labels"].T)[:800,:]
+        training_spectra = tmp["spectra"][:800,:]
+        validation_labels = (tmp["labels"].T)[800:,:]
+        validation_spectra = tmp["spectra"][800:,:]
+        tmp.close()
+        
+    if survey=='galah':
+        # read in whole GALAH model grid
+        model_grid = get_model_grid()
+        # make random choice reproducable
+        np.random.seed(3)
+        # now select 'size' entries from the model_grid, if the 'size' is not larger than the actual model grid
+        if size <= np.shape(model_grid['teff'])[0]:
+            training_array = np.random.choice(np.arange(np.shape(model_grid['teff'])[0]),size=size,replace=False)
+        else:
+            print('The model grid has only '+str(np.shape(model_grid['teff'])[0])+' entries')
+            
+        # select the labels and spectra from the chosen indices
+        labels = np.array([model_grid[key][training_array] for key in ['teff','logg','feh','alpha_fe']])
+        spectra = model_grid['smod'][training_array]
+        if 'wavelength' not in locals():
+            wavelength = load_wavelength_array(survey='galah')
+        spectra = np.array([np.interp(wavelength, model_grid['wavelength'], spectra[x]) for x in range(size)])
+
+        # we select/redefine 1/5 of the training set as validation set, the rest as training set
+        fifth = int(size/5)
+        print('Whole training set: '+str(size))
+        print('Redefined training set ('+str(size-fifth)+') and validation set ('+str(fifth)+')')
+        print(fifth)
+        training_labels = (labels.T)[:size-fifth,:]
+        training_spectra = (spectra[:size-fifth,:]).astype(np.float64)
+        validation_labels = (labels.T)[size-fifth:,:]
+        validation_spectra = (spectra[size-fifth:,:]).astype(np.float64)
+        
     return training_labels, training_spectra, validation_labels, validation_spectra
 
 def doppler_shift(wavelength, flux, dv):

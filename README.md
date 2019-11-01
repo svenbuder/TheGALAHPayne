@@ -3,7 +3,18 @@ Tools for interpolating spectral models with neural networks tailored for GALAH.
 
 The Payne was written by Yuan-Sen Ting, see [Ting et al. 2018](http://adsabs.harvard.edu/cgi-bin/bib_query?arXiv:1804.01530)
 
-This repository adjusts The Payne v1.0 to be used with GALAH
+This repository adjusts The Payne v1.0/v2.0 to be used with GALAH
+
+## Notebooks
+
+Observed_Spectra_Xu_191030.ipynb: Select 1161 spectra from GALAH for Xu
+
+Select_Trainingset: Exploring Thomas synthetic grid to select model training set
+
+train_Payne_v1.ipynb: The Payne training with YST's v2.0 training
+train_Payne_v2.0.ipynb: The Payne training with YST's v2.0 training
+
+tutorial.ipynb: YST's initial tutorial
 
 ## Installation
 Through pip

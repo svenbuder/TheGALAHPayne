@@ -12,6 +12,7 @@ Observed_Spectra_Xu_191030.ipynb: Select 1161 spectra from GALAH for Xu
 Select_Trainingset: Exploring Thomas synthetic grid to select model training set
 
 train_Payne_v1.ipynb: The Payne training with YST's v2.0 training
+
 train_Payne_v2.0.ipynb: The Payne training with YST's v2.0 training
 
 tutorial.ipynb: YST's initial tutorial
